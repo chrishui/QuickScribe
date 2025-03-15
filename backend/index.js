@@ -3,12 +3,30 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import pkg from 'pg';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import xss from 'xss-clean';
+import hpp from 'hpp';
 
 const { Pool } = pkg;
 
 dotenv.config();
 
 const app = express();
+
+// Security Middleware
+app.use(helmet()); // Protects against common security vulnerabilities
+app.use(xss()); // Prevents cross-site scripting attacks
+app.use(hpp()); // Prevents HTTP Parameter Pollution
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+});
+app.use(limiter);
+
 app.use(cors());
 app.use(express.json());
 
