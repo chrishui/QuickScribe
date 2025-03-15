@@ -9,6 +9,8 @@ export default function Dashboard() {
   const [editingNote, setEditingNote] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [newTitle, setNewTitle] = useState(""); 
+  const [newContent, setNewContent] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -53,7 +55,9 @@ export default function Dashboard() {
       await axios.delete(`http://localhost:5001/notes/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setNotes(notes.filter((note) => note.id !== id)); // Update UI after deletion
+
+       // Update UI after deletion
+      setNotes(notes.filter((note) => note.id !== id));
     } catch (error) {
       console.error("Error deleting note:", error);
     }
@@ -68,17 +72,49 @@ export default function Dashboard() {
   const handleUpdate = async () => {
     try {
       const token = await getAuthToken();
-      const response = await axios.put(`http://localhost:5001/notes/${editingNote}`, {
-        title: editTitle,
-        content: editContent,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.put(
+        `http://localhost:5001/notes/${editingNote}`,
+        {
+          title: editTitle,
+          content: editContent,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       setNotes(notes.map((note) => (note.id === editingNote ? response.data : note)));
       setEditingNote(null);
     } catch (error) {
       console.error("Error updating note:", error);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newTitle || !newContent) {
+      console.warn("Title and content cannot be empty.");
+      return;
+    }
+
+    try {
+      const token = await getAuthToken();
+      const response = await axios.post(
+        "http://localhost:5001/notes",
+        {
+          title: newTitle,
+          content: newContent,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Update UI with new note
+      setNotes([...notes, response.data]);
+      setNewTitle("");
+      setNewContent("");
+    } catch (error) {
+      console.error("Error creating note:", error);
     }
   };
 
@@ -88,6 +124,29 @@ export default function Dashboard() {
       <button className="mt-4 bg-red-500 text-white px-4 py-2" onClick={handleSignOut}>
         Sign Out
       </button>
+
+      {/* 🔹 Create Note Section */}
+      <div className="mt-6 p-4 border">
+        <h3 className="text-xl mb-2">Create a New Note</h3>
+        <input
+          type="text"
+          placeholder="Title"
+          className="border p-2 w-full"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+        />
+        <textarea
+          placeholder="Content"
+          className="border p-2 w-full mt-2"
+          value={newContent}
+          onChange={(e) => setNewContent(e.target.value)}
+        />
+        <button className="mt-2 bg-blue-500 text-white px-4 py-2" onClick={handleCreate}>
+          Add Note
+        </button>
+      </div>
+
+      {/* 🔹 Display Notes */}
       <ul>
         {notes.map((note) => (
           <li key={note.id} className="border p-2 mt-2 flex flex-col">
