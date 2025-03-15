@@ -38,40 +38,78 @@ const authenticateUser = async (req, res, next) => {
     req.user = payload;
     next();
   } catch (err) {
+    console.error("JWT Verification Failed:", err);
     res.status(403).json({ error: 'Invalid token' });
   }
 };
 
-// Sample Route - Get Notes
+// Get Notes (with optional search query)
 app.get('/notes', authenticateUser, async (req, res) => {
   try {
-    console.log("Fetching notes for user email:", req.user.email);
+    const searchQuery = req.query.query;
+    let query = 'SELECT * FROM notes WHERE user_id = $1';
+    let values = [req.user.email];
 
-    const result = await pool.query('SELECT * FROM notes WHERE user_id = $1', [req.user.email]);
+    if (searchQuery) {
+      query += ' AND (title ILIKE $2 OR content ILIKE $2)';
+      values.push(`%${searchQuery}%`);
+    }
+
+    const result = await pool.query(query, values);
     res.json(result.rows);
   } catch (err) {
+    console.error("Error fetching notes:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-
-
-// Sample Route - Create a Note
+// Create a Note
 app.post('/notes', authenticateUser, async (req, res) => {
   try {
     const { title, content } = req.body;
-    console.log("Creating note for user email:", req.user.email);
-
     const result = await pool.query(
       'INSERT INTO notes (user_id, title, content) VALUES ($1, $2, $3) RETURNING *',
       [req.user.email, title, content]
     );
     res.json(result.rows[0]);
   } catch (err) {
+    console.error("Error creating note:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// Update a Note
+app.put('/notes/:id', authenticateUser, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const { id } = req.params;
+    const result = await pool.query(
+      'UPDATE notes SET title = $1, content = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+      [title, content, id, req.user.email]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Note not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error updating note:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a Note
+app.delete('/notes/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING *',
+      [id, req.user.email]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Note not found' });
+    res.json({ message: 'Note deleted successfully' });
+  } catch (err) {
+    console.error("Error deleting note:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
