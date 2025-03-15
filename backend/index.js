@@ -7,6 +7,8 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import xss from 'xss-clean';
 import hpp from 'hpp';
+import compression from 'compression';
+import morgan from 'morgan';
 
 const { Pool } = pkg;
 
@@ -18,6 +20,8 @@ const app = express();
 app.use(helmet()); // Protects against common security vulnerabilities
 app.use(xss()); // Prevents cross-site scripting attacks
 app.use(hpp()); // Prevents HTTP Parameter Pollution
+app.use(compression()); // Compresses responses to improve performance
+app.use(morgan('combined')); // Logs HTTP requests for monitoring
 
 // Rate Limiting
 const limiter = rateLimit({
