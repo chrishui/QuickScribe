@@ -3,6 +3,7 @@ import axios from "axios";
 import { getAuthToken, signOutUser } from "../config/amplify";
 import { getCurrentUser } from "@aws-amplify/auth";
 import { useRouter } from "next/router";
+import ReactMarkdown from "react-markdown";
 
 export default function Dashboard() {
   const [notes, setNotes] = useState([]);
@@ -10,23 +11,20 @@ export default function Dashboard() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [newTitle, setNewTitle] = useState(""); 
-  const [newContent, setNewContent] = useState("");
+  const [newContent, setNewContent] = useState(""); 
   const router = useRouter();
 
   useEffect(() => {
     const fetchNotes = async () => {
       try {
-        // Check if user is authenticated. Redirect to sign-in page if not authenticated
         const user = await getCurrentUser().catch(() => null);
         if (!user) {
-          console.warn("User is not authenticated. Redirecting to sign-in...");
           router.push("/signin");
           return;
         }
 
         const token = await getAuthToken();
         if (!token) {
-          console.error("Failed to retrieve authentication token.");
           router.push("/signin");
           return;
         }
@@ -55,8 +53,6 @@ export default function Dashboard() {
       await axios.delete(`http://localhost:5001/notes/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-       // Update UI after deletion
       setNotes(notes.filter((note) => note.id !== id));
     } catch (error) {
       console.error("Error deleting note:", error);
@@ -109,7 +105,6 @@ export default function Dashboard() {
         }
       );
 
-      // Update UI with new note
       setNotes([...notes, response.data]);
       setNewTitle("");
       setNewContent("");
@@ -136,7 +131,7 @@ export default function Dashboard() {
           onChange={(e) => setNewTitle(e.target.value)}
         />
         <textarea
-          placeholder="Content"
+          placeholder="Write in Markdown..."
           className="border p-2 w-full mt-2"
           value={newContent}
           onChange={(e) => setNewContent(e.target.value)}
@@ -169,7 +164,10 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <strong>{note.title}</strong>: {note.content}
+                <strong>{note.title}</strong>
+                <div className="mt-1 prose">
+                  <ReactMarkdown>{note.content}</ReactMarkdown>
+                </div>
                 <div className="mt-2">
                   <button className="bg-yellow-500 text-white px-2 py-1 mr-2" onClick={() => handleEdit(note)}>
                     Edit
