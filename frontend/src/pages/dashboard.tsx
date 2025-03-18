@@ -4,14 +4,27 @@ import { getAuthToken, signOutUser } from "../config/amplify";
 import { getCurrentUser } from "@aws-amplify/auth";
 import { useRouter } from "next/router";
 import ReactMarkdown from "react-markdown";
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "../components/SortableItem.tsx";
 
 export default function Dashboard() {
   const [notes, setNotes] = useState([]);
   const [editingNote, setEditingNote] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
-  const [newTitle, setNewTitle] = useState(""); 
-  const [newContent, setNewContent] = useState(""); 
+  const [newTitle, setNewTitle] = useState("");
+  const [newContent, setNewContent] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -113,6 +126,18 @@ export default function Dashboard() {
     }
   };
 
+  // 🔹 Drag & Drop Handling
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = notes.findIndex((note) => note.id === active.id);
+    const newIndex = notes.findIndex((note) => note.id === over.id);
+    setNotes(arrayMove(notes, oldIndex, newIndex)); // UI only (no backend)
+  };
+
   return (
     <div className="p-10">
       <h2 className="text-2xl">Your Notes</h2>
@@ -141,46 +166,52 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* 🔹 Display Notes */}
-      <ul>
-        {notes.map((note) => (
-          <li key={note.id} className="border p-2 mt-2 flex flex-col">
-            {editingNote === note.id ? (
-              <>
-                <input
-                  type="text"
-                  className="border p-1"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                />
-                <textarea
-                  className="border p-1 mt-2"
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                />
-                <button className="mt-2 bg-green-500 text-white px-4 py-1" onClick={handleUpdate}>
-                  Save
-                </button>
-              </>
-            ) : (
-              <>
-                <strong>{note.title}</strong>
-                <div className="mt-1 prose">
-                  <ReactMarkdown>{note.content}</ReactMarkdown>
-                </div>
-                <div className="mt-2">
-                  <button className="bg-yellow-500 text-white px-2 py-1 mr-2" onClick={() => handleEdit(note)}>
-                    Edit
-                  </button>
-                  <button className="bg-red-500 text-white px-2 py-1" onClick={() => handleDelete(note.id)}>
-                    Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+      {/* Display Notes with Drag & Drop */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={notes.map((note) => note.id)} strategy={verticalListSortingStrategy}>
+          <ul className="mt-4">
+            {notes.map((note) => (
+              <SortableItem key={note.id} id={note.id}>
+                <li className="border p-2 mt-2 flex flex-col bg-white shadow-md">
+                  {editingNote === note.id ? (
+                    <>
+                      <input
+                        type="text"
+                        className="border p-1"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                      />
+                      <textarea
+                        className="border p-1 mt-2"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                      />
+                      <button className="mt-2 bg-green-500 text-white px-4 py-1" onClick={handleUpdate}>
+                        Save
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{note.title}</strong>
+                      <div className="mt-1 prose">
+                        <ReactMarkdown>{note.content}</ReactMarkdown>
+                      </div>
+                      <div className="mt-2">
+                        <button className="bg-yellow-500 text-white px-2 py-1 mr-2" onClick={() => handleEdit(note)}>
+                          Edit
+                        </button>
+                        <button className="bg-red-500 text-white px-2 py-1" onClick={() => handleDelete(note.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              </SortableItem>
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
